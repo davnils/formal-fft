@@ -1,6 +1,6 @@
 {-# LANGUAGE ScopedTypeVariables, TypeSynonymInstances, FlexibleInstances, BangPatterns #-}
 
-module Main where
+module Math.FormalFFT where
 
 import Control.Applicative ((<$>))
 import Control.Arrow ((***))
@@ -44,8 +44,8 @@ constrainTransform c np = do
   let work  = zip work1 work2
       shared = dft false c work
       dft'  = dft true c shared
-      fft'  = fftinv (literal $ fromIntegral np) c (fft c work)
-      mixed = fftinv (literal $ fromIntegral np) c shared
+      fft'  = fft true c (fft false c work)
+      mixed = fft true c shared
 
   return $ dft' .== work &&& mixed .== work &&& fft' .== work
 
@@ -97,38 +97,25 @@ dot :: [Complex] -> [Complex] -> Complex
 dot [] [] = (0, 0)
 dot (a:at) (b:bt) = (a `cmul` b) `cadd` dot at bt
 
-fft :: {-SBool -> -}Complex -> [Complex] -> [Complex]
-fft {-inverse -}root x = {-map (invmulk scaling) $-} go root x
+fft :: SBool -> Complex -> [Complex] -> [Complex]
+fft inverse root x = map (invmulk scaling) $ go root x
   where
-  -- scaling = ite inverse (length x) 1
-  -- exponent = ite inverse (-2) (2)
+  scaling = ite inverse (length x) 1
+  exponent = ite inverse (-2) (2)
   go :: Complex -> [Complex] -> [Complex]
   go _ (a:[]) = [a]
   go c a = uncurry (<>) $ unzip combined
 
     where
-    (subresult_1, subresult_2) = join (***) (go $ pow c 2) $ divideEvenOdd a
+    (subresult_1, subresult_2) = join (***) (go $ pow c exponent) $ divideEvenOdd a
     rootPowers = iterate (`cmul` c) (1, 0)
     combined = zipWith3 (\y_i y_i' z -> (y_i `cadd` (z `cmul` y_i'), y_i `csub` (z `cmul` y_i')))
-               subresult_1 subresult_2 {-(ite inverse (map (invmul 1) rootPowers) -}(rootPowers)
-
-fftinv :: SInteger -> Complex -> [Complex] -> [Complex]
-fftinv scaling root x = go root x
-  where
-  go :: Complex -> [Complex] -> [Complex]
-  go _ (a:[]) = [invmulk scaling a]
-  go c a = uncurry (<>) $ unzip combined
-
-    where
-    (even', odd') = divideEvenOdd a
-    (subresult_1, subresult_2) = let f = go (pow c (-2)) in (f even', f odd') -- (***) (go $ pow c (-2)) $ divideEvenOdd a
-    rootPowers = genPowers scaling c (1, 0) -- iterate (`cmul` c) (1, 0)
-    combined = zipWith3 (\y_i y_i' z -> (y_i `cadd` (z `cmul` y_i'), y_i `csub` (z `cmul` y_i')))
-               subresult_1 subresult_2 (map (invmul 1) rootPowers)
-    genPowers n c worker = ite (n .== 0) [] (worker : genPowers (n-1) c (worker `cmul` c))
+               subresult_1 subresult_2 (ite inverse (map (invmul 1) rootPowers) (rootPowers))
 
 divideEvenOdd :: [a] -> ([a], [a])
 divideEvenOdd = swap . foldr (\e (l1, l2) -> (l2, e:l1)) ([], [])
 
+{-
 main :: IO ()
-main = mapM_ testTransform [1,2,4] >> mapM proveTransform [1,2,4] >>= print 
+main = mapM_ (\n -> proveTransform n >>= print) [1,2,4]
+-}
