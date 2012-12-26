@@ -1,4 +1,4 @@
-{-# LANGUAGE ScopedTypeVariables, TypeSynonymInstances, FlexibleInstances, BangPatterns #-}
+{-# LANGUAGE ScopedTypeVariables, TypeSynonymInstances, FlexibleInstances #-}
 
 module Math.FormalFFT where
 
@@ -101,7 +101,7 @@ fft :: SBool -> Complex -> [Complex] -> [Complex]
 fft inverse root x = map (invmulk scaling) $ go root x
   where
   scaling = ite inverse (length x) 1
-  exponent = ite inverse (-2) (2)
+  exponent = ite inverse (-2) 2
   go :: Complex -> [Complex] -> [Complex]
   go _ (a:[]) = [a]
   go c a = uncurry (<>) $ unzip combined
@@ -110,12 +110,7 @@ fft inverse root x = map (invmulk scaling) $ go root x
     (subresult_1, subresult_2) = join (***) (go $ pow c exponent) $ divideEvenOdd a
     rootPowers = iterate (`cmul` c) (1, 0)
     combined = zipWith3 (\y_i y_i' z -> (y_i `cadd` (z `cmul` y_i'), y_i `csub` (z `cmul` y_i')))
-               subresult_1 subresult_2 (ite inverse (map (invmul 1) rootPowers) (rootPowers))
+               subresult_1 subresult_2 (ite inverse (map (invmul 1) rootPowers) rootPowers)
 
 divideEvenOdd :: [a] -> ([a], [a])
 divideEvenOdd = swap . foldr (\e (l1, l2) -> (l2, e:l1)) ([], [])
-
-{-
-main :: IO ()
-main = mapM_ (\n -> proveTransform n >>= print) [1,2,4]
--}
