@@ -44,17 +44,17 @@ constrainTransform c np = do
   let work  = zip work1 work2
       shared = dft false c work
       dft'  = dft true c shared
-      -- fft'  = fftinv c (fft c work)
+      fft'  = fftinv (literal $ fromIntegral np) c (fft c work)
       mixed = fftinv (literal $ fromIntegral np) c shared
 
-  return $ dft' .== work &&& mixed .== work -- &&& fft' .== work &&& mixed .== work
+  return $ dft' .== work &&& mixed .== work &&& fft' .== work
 
 proveTransform :: Int -> IO ThmResult
 proveTransform np = do
   let n = literal $ fromIntegral np
 
   prove $ do
-    [real, imag] <- mkExistVars 2 -- symbolics ["c_re", "c_im"]
+    [real, imag] <- {- mkExistVars 2 -} symbolics ["c_re", "c_im"]
     let c = (real, imag)
     constrainPrimitiveUnitRoot c n >> constrainTransform c np
 
@@ -131,4 +131,4 @@ divideEvenOdd :: [a] -> ([a], [a])
 divideEvenOdd = swap . foldr (\e (l1, l2) -> (l2, e:l1)) ([], [])
 
 main :: IO ()
-main = mapM_ testTransform [1,2,4] >> proveTransform 8 >>= print 
+main = mapM_ testTransform [1,2,4] >> mapM proveTransform [1,2,4] >>= print 
